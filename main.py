@@ -42,29 +42,28 @@ def main(init):
         # Get the CVE title.
         title = info.find('{http://www.icasi.org/CVRF/schema/vuln/1.1}CVE')
         # Create any array for each note/description.
-        description = []
-        # For each note in vulnerability.
-        for note in info.findall('{http://www.icasi.org/CVRF/schema/vuln/1.1}Notes'):
-            # Append each note to the final description.
-            description.append(note.find('{http://www.icasi.org/CVRF/schema/vuln/1.1}Note').text)
+        description = [
+            note.find('{http://www.icasi.org/CVRF/schema/vuln/1.1}Note').text
+            for note in info.findall(
+                '{http://www.icasi.org/CVRF/schema/vuln/1.1}Notes'
+            )
+        ]
 
         try:
             # Check if the CVE is disclosed.
-            if "** RESERVED **" not in str(''.join(description)):
+            if "** RESERVED **" not in ''.join(description):
                 # Does the CVE exist in the database
                 cve_exists = CVE.query().filter(CVE.title == title.text).first()
                 # If the CVE doesn't exist in the database.
                 if cve_exists is None:
-                    # If it's a database initialization, set the CVE to notified.
-                    if init == True:
-                        CVE.create(title=title.text, description=str(''.join(description)), notified=init).save()
-                    # If it's not a database initialization, set the CVE to unnotified. 
-                    else:
-                        CVE.create(title=title.text, description=str(''.join(description)), notified=init).save()
+                    CVE.create(
+                        title=title.text,
+                        description=''.join(description),
+                        notified=init,
+                    ).save()
+
         except Exception as e:
             print(e)
-            pass
-
     # Pull CVE's that haven't been notified.
     cves = CVE.query().filter(CVE.notified == False)
     for cve in cves:
@@ -105,7 +104,6 @@ if len(sys.argv) > 1:
         # Call main() with a parameter of init = True.
         main(True)
 
-    # If the argument equals "scan".
     elif sys.argv[1] == "scan":
         # Setup infinite loop.
         while True:
@@ -114,30 +112,21 @@ if len(sys.argv) > 1:
             # Sleep 60 seconds after scan.
             time.sleep(60)
             # Clear after scan.
-            if os.name == 'nt':
-                _ = os.system('cls')
-            else:
-                _ = os.system('clear')
-
-    # If the argument equals "search".
+            _ = os.system('cls') if os.name == 'nt' else os.system('clear')
     elif sys.argv[1] == "search" and len(sys.argv) > 3:
-        keyword = '%' + str(sys.argv[2]) + '%' # Define keyword to find.
+        keyword = f'%{str(sys.argv[2])}%'
         limit = int(sys.argv[3])               # Define the amount of CVE's to find.
 
         # If sys.argv[2] contains a keyword.
         if sys.argv[2] != "*":
             # Pull keyword CVE's.
             results = CVE.query().filter(CVE.description.like(keyword)).order_by(CVE.id.desc()).limit(limit).all()
-            for cve in results:
-                # Display CVE and description.
-                print('\n\t' + cve.title + '\n\t\t' + textwrap.fill(cve.description, subsequent_indent='\t\t'))
-        # If sys.argv[2] is * (everything).
         else:
             # Pull latest CVE's.
             results = CVE.query().filter(CVE.id).order_by(CVE.id.desc()).limit(limit).all()
-            for cve in results:
-                # Display CVE and description.
-                print('\n\t' + cve.title + '\n\t\t' + textwrap.fill(cve.description, subsequent_indent='\t\t'))
+        for cve in results:
+            # Display CVE and description.
+            print('\n\t' + cve.title + '\n\t\t' + textwrap.fill(cve.description, subsequent_indent='\t\t'))
     else:
         help()
 else:
